@@ -1,0 +1,9 @@
+{
+  "name": "@caeljs/jsx",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^22.14.0"
+  }
+}
