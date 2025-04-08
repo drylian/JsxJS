@@ -2,6 +2,10 @@
   "name": "@caeljs/jsx",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "dev":"bun --watch test/index.tsx",
+    "html":"bun --watch index.html"
+  },
   "private": true,
   "devDependencies": {
     "@types/node": "^22.14.0"

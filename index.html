@@ -1,0 +1,320 @@
+<!doctype html><html><head><meta charset="UTF-8" /><meta name="viewport"  content="width=device-width, initial-scale=1.0" /><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script><script>(() => {
+  if (typeof window.__GLOBAL_HOOKS_SETUP !== "undefined")
+    return;
+  window.__GLOBAL_HOOKS_SETUP = !0;
+  window.__GLOBAL_STATES = {
+    states: new Map,
+    refs: new Map,
+    effects: new Map,
+    contexts: new Map,
+    hookIndices: new Map,
+    componentListeners: new Map,
+    routeCache: new Map
+  };
+  window.__cleanupRouteComponents = (elementId) => {
+    const element = document.getElementById(elementId);
+    if (!element)
+      return;
+    Array.from(element.querySelectorAll("[id]")).map((el) => el.id).filter((id) => window.__GLOBAL_STATES.componentListeners.has(id)).forEach((componentId) => {
+      window.__cleanupComponent(componentId);
+    });
+    window.__GLOBAL_STATES.routeCache.delete(elementId);
+  };
+  window.createContext = (id, initialValue) => {
+    if (window.__GLOBAL_STATES.contexts.has(id))
+      console.warn(`Context with id "${id}" already exists. Overwriting...`);
+    const proxy = new Proxy({
+      _value: initialValue,
+      get value() {
+        return this._value;
+      },
+      set value(newValue) {
+        this._value = newValue;
+        window.__GLOBAL_STATES.componentListeners.forEach((listeners) => {
+          listeners.forEach((cb) => cb());
+        });
+      }
+    }, {
+      get(target, prop) {
+        if (prop === "value")
+          return target.value;
+        if (typeof prop === "string" && prop in target.value)
+          return target.value[prop];
+        return;
+      },
+      set(target, prop, value) {
+        if (prop === "value")
+          target.value = value;
+        else if (typeof prop === "string")
+          target.value = {
+            ...target.value,
+            [prop]: value
+          };
+        return !0;
+      }
+    });
+    window.__GLOBAL_STATES.contexts.set(id, proxy);
+    return proxy;
+  };
+  window.useContext = (id) => {
+    return window.__GLOBAL_STATES.contexts.get(id);
+  };
+  window.deleteContext = (id) => {
+    return window.__GLOBAL_STATES.contexts.delete(id);
+  };
+  window.useState = (initialValue) => {
+    if (!window.currentComponentId)
+      throw new Error("useState must be called within a reactive component");
+    const componentId = window.currentComponentId, currentIndex = window.__GLOBAL_STATES.hookIndices.get(componentId) || 0, key = `${componentId}-${currentIndex}`;
+    window.__GLOBAL_STATES.hookIndices.set(componentId, currentIndex + 1);
+    if (!window.__GLOBAL_STATES.states.has(key))
+      window.__GLOBAL_STATES.states.set(key, {
+        value: initialValue,
+        listeners: new Set
+      });
+    const state = window.__GLOBAL_STATES.states.get(key), setState = (newValue) => {
+      const value = typeof newValue === "function" ? newValue(state.value) : newValue;
+      if (state.value !== value) {
+        state.value = value;
+        state.listeners.forEach((listener) => listener());
+        window.__GLOBAL_STATES.componentListeners.get(componentId)?.forEach((cb) => cb());
+      }
+    };
+    return [state.value, setState];
+  };
+  window.INITIALIZE_ROUTER = (router_id) => {
+    if (!window.__GLOBAL_STATES.contexts.has(router_id))
+      window.createContext(router_id, {
+        currentPath: window.location.pathname,
+        element_id: router_id,
+        routes: {},
+        params: {},
+        previousRoute: null,
+        cached: !1
+      });
+    const matchDynamicRoute = (path, routes) => {
+      const router = window.useContext(router_id);
+      if (router?.cached) {
+        const cached = window.__GLOBAL_STATES.routeCache.get(router_id);
+        if (cached && cached.params.path === path)
+          return cached;
+      }
+      const pathSegments = path.split("/").filter(Boolean);
+      let bestMatch = null, bestScore = -1;
+      for (const [routePattern, html] of Object.entries(routes)) {
+        const routeSegments = routePattern.split("/").filter(Boolean), params = {};
+        let isMatch = !0, wildcardMatch = !1, currentScore = 0;
+        const hasWildcard = routeSegments.includes("*"), compareLength = hasWildcard ? routeSegments.indexOf("*") : routeSegments.length;
+        if (!hasWildcard && pathSegments.length !== routeSegments.length)
+          continue;
+        for (let i = 0;i < compareLength; i++) {
+          const routeSeg = routeSegments[i], pathSeg = pathSegments[i];
+          if (routeSeg?.startsWith(":")) {
+            const paramName = routeSeg.slice(1);
+            params[paramName] = pathSeg;
+            currentScore += 1;
+          } else if (routeSeg === "*") {
+            wildcardMatch = !0;
+            params.wildcard = pathSegments.slice(i).join("/");
+            currentScore += 0;
+            break;
+          } else if (routeSeg !== pathSeg) {
+            isMatch = !1;
+            break;
+          } else
+            currentScore += 2;
+        }
+        if (hasWildcard && !wildcardMatch && compareLength < pathSegments.length)
+          params.wildcard = pathSegments.slice(compareLength).join("/");
+        if (isMatch && currentScore > bestScore) {
+          bestMatch = { matchedRoute: routePattern, params, html };
+          bestScore = currentScore;
+        }
+      }
+      if (bestMatch && router?.cached)
+        window.__GLOBAL_STATES.routeCache.set(router_id, {
+          ...bestMatch
+        });
+      return bestMatch;
+    }, renderRoute = () => {
+      const router = window.useContext(router_id);
+      if (!router)
+        return;
+      const { currentPath, routes, element_id, previousRoute, cached } = router, element = document.getElementById(element_id);
+      if (!element) {
+        console.error(`Element with ID ${element_id} not found.`);
+        return;
+      }
+      if (previousRoute && previousRoute !== currentPath && !cached)
+        window.__cleanupRouteComponents(element_id);
+      let html = routes[currentPath], params = {};
+      if (!html) {
+        const dynamicMatch = matchDynamicRoute(currentPath, router.routes);
+        if (dynamicMatch) {
+          html = dynamicMatch.html;
+          params = dynamicMatch.params;
+          router.params = params;
+        }
+      }
+      if (html) {
+        const rawHtml = ((html) => {
+          const textarea = document.createElement("textarea");
+          textarea.innerHTML = html;
+          return textarea.value;
+        })(html), container = document.createElement("div");
+        container.innerHTML = rawHtml;
+        const scripts = Array.from(container.querySelectorAll("script"));
+        scripts.forEach((script) => script.remove());
+        if (element.innerHTML !== container.innerHTML) {
+          element.innerHTML = "";
+          Array.from(container.childNodes).forEach((child) => {
+            element.appendChild(child);
+          });
+          scripts.forEach((oscript) => {
+            const nscript = document.createElement("script");
+            Array.from(oscript.attributes).forEach((attr) => {
+              nscript.setAttribute(attr.name, attr.value);
+            });
+            if (oscript.src) {
+              nscript.src = oscript.src;
+              document.head.appendChild(nscript);
+            } else {
+              nscript.textContent = oscript.textContent;
+              document.head.appendChild(nscript);
+              document.head.removeChild(nscript);
+            }
+          });
+        }
+        router.previousRoute = currentPath;
+        window.dispatchEvent(new CustomEvent("routechange", {
+          detail: { path: currentPath, params }
+        }));
+      } else
+        console.warn(`Route "${currentPath}" not found.`);
+    };
+    window.navigate = (path) => {
+      const router = window.useContext(router_id);
+      if (router) {
+        router.currentPath = path;
+        history.pushState({}, "", path);
+        renderRoute();
+      }
+    };
+    const handlePopState = () => {
+      const router = window.useContext(router_id);
+      if (router) {
+        router.currentPath = window.location.pathname;
+        renderRoute();
+      }
+    };
+    window.addEventListener("popstate", handlePopState, { passive: !0 });
+    window.addEventListener("DOMContentLoaded", () => window.navigate("/"));
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.__cleanupRouteComponents(router_id);
+    };
+  };
+  window.useRef = (initialValue) => {
+    if (!window.currentComponentId)
+      throw new Error("useRef must be called within a reactive component");
+    if (!window.__GLOBAL_STATES.hookIndices.has(window.currentComponentId))
+      window.__GLOBAL_STATES.hookIndices.set(window.currentComponentId, 0);
+    const currentIndex = window.__GLOBAL_STATES.hookIndices.get(window.currentComponentId), key = `${window.currentComponentId}-${currentIndex}`;
+    window.__GLOBAL_STATES.hookIndices.set(window.currentComponentId, currentIndex + 1);
+    if (!window.__GLOBAL_STATES.refs.has(key))
+      window.__GLOBAL_STATES.refs.set(key, {
+        current: initialValue
+      });
+    return window.__GLOBAL_STATES.refs.get(key);
+  };
+  window.useEffect = (effect, deps) => {
+    if (!window.currentComponentId)
+      throw new Error("useEffect must be called within a reactive component");
+    if (!window.__GLOBAL_STATES.hookIndices.has(window.currentComponentId))
+      window.__GLOBAL_STATES.hookIndices.set(window.currentComponentId, 0);
+    const currentIndex = window.__GLOBAL_STATES.hookIndices.get(window.currentComponentId), key = `${window.currentComponentId}-${currentIndex}`;
+    window.__GLOBAL_STATES.hookIndices.set(window.currentComponentId, currentIndex + 1);
+    let effectData = window.__GLOBAL_STATES.effects.get(key);
+    const isFirstRun = !effectData;
+    if (isFirstRun) {
+      effectData = {
+        cleanup: null,
+        oldDeps: deps
+      };
+      window.__GLOBAL_STATES.effects.set(key, effectData);
+    }
+    if ((isFirstRun || !deps || !effectData?.oldDeps || deps.some((dep, i) => dep !== effectData?.oldDeps?.[i])) && effectData) {
+      if (effectData?.cleanup)
+        effectData?.cleanup();
+      effectData.cleanup = effect();
+      effectData.oldDeps = deps;
+    }
+  };
+  window.__reactiveComponents = new Map;
+  window.__cleanupComponent = (componentId) => {
+    for (const [key, value] of window.__GLOBAL_STATES.effects)
+      if (key.startsWith(componentId + "-") && value.cleanup) {
+        value.cleanup();
+        window.__GLOBAL_STATES.effects.delete(key);
+      }
+    for (const [key] of window.__GLOBAL_STATES.states)
+      if (key.startsWith(componentId + "-"))
+        window.__GLOBAL_STATES.states.delete(key);
+    for (const [key] of window.__GLOBAL_STATES.refs)
+      if (key.startsWith(componentId + "-"))
+        window.__GLOBAL_STATES.refs.delete(key);
+    window.__GLOBAL_STATES.componentListeners.delete(componentId);
+    window.__GLOBAL_STATES.hookIndices.delete(componentId);
+  };
+  window.__cleanupAllComponents = () => {
+    for (const componentId of window.__GLOBAL_STATES.componentListeners.keys())
+      window.__cleanupComponent(componentId);
+  };
+  window.__getComponentState = (componentId) => {
+    return {
+      states: Array.from(window.__GLOBAL_STATES.states.entries()).filter(([key]) => key.startsWith(componentId + "-")),
+      effects: Array.from(window.__GLOBAL_STATES.effects.entries()).filter(([key]) => key.startsWith(componentId + "-")),
+      refs: Array.from(window.__GLOBAL_STATES.refs.entries()).filter(([key]) => key.startsWith(componentId + "-"))
+    };
+  };
+  window.reactiveComponent = (reference, callback) => {
+    const element = document.getElementById(reference);
+    if (!element)
+      return;
+    let isMounted = !0, pendingUpdate = !1, cleanupFunctions = [];
+    window.__cleanupComponent(reference);
+    window.currentComponentId = reference;
+    window.__GLOBAL_STATES.hookIndices.set(reference, 0);
+    const updateComponent = async () => {
+      if (!isMounted || pendingUpdate)
+        return;
+      pendingUpdate = !0;
+      cleanupFunctions.forEach((fn) => fn());
+      cleanupFunctions = [];
+      window.__GLOBAL_STATES.hookIndices.set(reference, 0);
+      window.currentComponentId = reference;
+      try {
+        const result = callback(element);
+        if (result && result instanceof Promise)
+          await result;
+      } catch (error) {
+        console.error(`Error in reactive component #${reference}:`, error);
+      } finally {
+        pendingUpdate = !1;
+      }
+    };
+    if (!window.__GLOBAL_STATES.componentListeners.has(reference))
+      window.__GLOBAL_STATES.componentListeners.set(reference, new Set);
+    const listeners = window.__GLOBAL_STATES.componentListeners.get(reference);
+    listeners.add(updateComponent);
+    updateComponent();
+    return () => {
+      isMounted = !1;
+      cleanupFunctions.forEach((fn) => fn());
+      window.currentComponentId = null;
+      listeners.delete(updateComponent);
+      if (listeners.size === 0)
+        window.__cleanupComponent(reference);
+    };
+  };
+})()</script><script>createContext("user", {"name":"Drylian","email":"daniel.alternight@gmail.com"})</script></head><body><div id="bn0gFioQCUTsqHdg-routes"></div><script>const RoutesID = "bn0gFioQCUTsqHdg-routes";window.INITIALIZE_ROUTER(RoutesID);const RoutesContext = useContext(RoutesID);RoutesContext.routes["/a"] = `&lt;h3&gt; Hello mother fucker2&lt;&#47;h3&gt;`;RoutesContext.routes["/"] = `&lt;h3&gt; Hello mother fucker&lt;&#47;h3&gt;&lt;button href=&quot;&#47;a&quot; id=&quot;BJ5fH4QRfdYoBFCK&quot;&gt;go 2&lt;&#47;button&gt;&lt;script&gt;document.getElementById(&apos;BJ5fH4QRfdYoBFCK&apos;).addEventListener(&apos;click&apos;, (event) =&gt; {navigate(&quot;&#47;a&quot;); event.preventDefault();});&lt;&#47;script&gt;`;</script></body></html>

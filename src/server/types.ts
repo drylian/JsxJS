@@ -2,6 +2,8 @@
 /* === Core DOM Types === */
 /* ====================== */
 
+import type { Reactive } from "../client";
+
 /**
  * DOM node can be:
  * - Primitive (string, number, boolean, null, undefined)
@@ -13,7 +15,7 @@ export type DOMNode =
     | PrimitiveNode
     | DOMElement
     | DOMNode[]
-    | Promise<DOMNode>;
+    | Promise<unknown>;
 
 export type PrimitiveNode = string | number | boolean | null | undefined;
 
@@ -45,6 +47,7 @@ export interface DOMAttributes {
     role?: string;
     draggable?: boolean;
     spellcheck?: boolean | 'true' | 'false';
+    reactive?: Parameters<typeof Reactive>['0']['callback'];
 
     // Data attributes
     [dataAttr: `data-${string}`]: any;

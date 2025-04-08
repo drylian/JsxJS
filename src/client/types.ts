@@ -16,6 +16,21 @@ export let currentComponentId: string | null = "Client side only" as any;
  */
 export const __reactiveComponents: Map<string, any> = "Client side only" as any;
 
+type StateData = {
+  value: unknown;
+  listeners: Set<() => void>;
+};
+
+type EffectData = {
+  cleanup: (() => void) | null;
+  oldDeps: unknown[] | undefined;
+};
+
+type RefData = {
+  current: unknown;
+};
+
+
 /**
  * Core structure storing all hook states and metadata
  * @property {Map<string, {value: any, listeners: Set<() => void>}>} states - Component states storage
@@ -25,20 +40,43 @@ export const __reactiveComponents: Map<string, any> = "Client side only" as any;
  * @property {Map<string, Set<() => void>>} componentListeners - Component update listeners
  */
 export const __GLOBAL_STATES: {
-    states: Map<string, {
-        value: any;
-        listeners: Set<() => void>;
-    }>;
-    refs: Map<string, {
-        current: any;
-    }>;
-    effects: Map<string, {
-        cleanup: (() => void) | null;
-        oldDeps: any[] | undefined;
-    }>;
-    hookIndices: Map<string, number>;
-    componentListeners: Map<string, Set<() => void>>;
+  states: Map<string, StateData>;
+  refs: Map<string, RefData>;
+  effects: Map<string, EffectData>;
+  contexts: Map<string, unknown>;
+  hookIndices: Map<string, number>;
+  componentListeners: Map<string, Set<() => void>>;
+  routeCache: Map<string, { html: string; params: Record<string, string> }>;
 } = "Client side only" as any;
+
+// ================== CORE HOOKS ================== //
+
+/**
+ * Creates a new global context
+ * @template T - Type of the context value
+ * @callback createContext
+ * @param {string} id - Unique identifier for the context
+ * @param {T} initialValue - Initial context value
+ * @returns {T} The created context object
+ */
+export function createContext<T>(_id: string, _initialValue: T): T { return "Client side only" as any; };
+
+/**
+ * Retrieves a global context by ID
+ * @template T - Expected type of the context value
+ * @callback useContext
+ * @param {string} id - Identifier of the context to retrieve
+ * @returns {T | undefined} The context value or undefined if not found
+ */
+export function useContext<T>(_id: string): T | undefined { return "Client side only" as any; };
+
+/**
+ * Deletes a global context by ID
+ * @callback deleteContext
+ * @param {string} id - Identifier of the context to delete
+ * @returns {boolean} True if context was deleted, false if not found
+ */
+export function deleteContext(_id: string): boolean { return "Client side only" as any; };
 
 /**
  * React-like state hook type
@@ -55,7 +93,7 @@ export function useState<T>(_initialValue: T): [T, (value: T | ((prev: T) => T))
  * @param {() => (void | (() => void))} effect - Effect callback function
  * @param {any[]} [deps] - Optional dependency array
  */
-export function useEffect(_effect: () => void | (() => void), deps?: any[]) { return "Client side only" as any; };
+export function useEffect(_effect: () => void | (() => void), _deps?: any[]) { return "Client side only" as any; };
 
 /**
  * React-like ref hook type
@@ -66,13 +104,64 @@ export function useEffect(_effect: () => void | (() => void), deps?: any[]) { re
  */
 export function useRef<T>(_initialValue: T): { current: T } { return "Client side only" as any; };
 
+// ================== ROUTER TYPES ================== //
+
+/**
+ * Router context type
+ * @property {string} currentPath - Current route path
+ * @property {Record<string, string>} params - Route parameters
+ */
+export interface RouterContext {
+  currentPath: string;
+  routes: Record<string, string>;
+  element_id: string;
+  params: Record<string, string>;
+  previousRoute: string | null;
+  cached:boolean;
+}
+
+/**
+ * Navigation function type
+ * @callback NavigateFunction
+ * @param {string} path - Path to navigate to
+ */
+export type NavigateFunction = (path: string) => void;
+
+/**
+ * Creates the router system
+ * @callback INITIALIZE_ROUTER
+ */
+export function INITIALIZE_ROUTER(_id: string): void { return "Client side only" as any; };
+
+/**
+ * Programmatically navigates to a new route
+ * @callback navigate
+ * @param {string} path - Path to navigate to
+ */
+export function navigate(_path: string): void { return "Client side only" as any; };
+
+// ================== COMPONENT SYSTEM ================== //
+
+/**
+ * Creates a reactive component
+ * @callback reactiveComponent
+ * @param {string} id - Component ID (used as DOM element ID)
+ */
+export function reactiveComponent(_id: string, _callback: (element: HTMLElement) => unknown): () => void { return "Client side only" as any; };
+
 /**
  * Cleans up all hooks for a specific component
  * @callback __cleanupComponent
  * @param {string} componentId - ID of the component to clean up
  */
 export function __cleanupComponent(_componentId: string): void { return "Client side only" as any; };
-export function reactiveComponent(_id: string, _callback: (element: HTMLElement) => void | (() => void)): void { return "Client side only" as any; };
+
+/**
+ * Cleans up all hooks for a specific route
+ * @callback __cleanupRouteComponents
+ * @param {string} componentId - ID of the component to clean up
+ */
+export function __cleanupRouteComponents(_routeid: string): void { return "Client side only" as any; };
 
 /**
  * Cleans up all components and their associated hooks
@@ -90,9 +179,9 @@ export function __cleanupAllComponents(): void { return "Client side only" as an
  * @returns {Array} [2] refs - Array of ref entries [key, {current}]
  */
 export function __getComponentState(_componentId: string): {
-    states: [string, { value: any; listeners: Set<() => void> }][];
-    effects: [string, { cleanup: (() => void) | null; oldDeps: any[] | undefined }][];
-    refs: [string, { current: any }][];
+  states: [string, { value: any; listeners: Set<() => void> }][];
+  effects: [string, { cleanup: (() => void) | null; oldDeps: any[] | undefined }][];
+  refs: [string, { current: any }][];
 } { return "Client side only" as any; };
 
 /**
@@ -100,33 +189,49 @@ export function __getComponentState(_componentId: string): {
  * @namespace global
  */
 declare global {
-    interface Window {
-        /** @type {__GLOBAL_HOOKS_SETUP} */
-        __GLOBAL_HOOKS_SETUP?: typeof __GLOBAL_HOOKS_SETUP;
-        /** @type {currentComponentId} */
-        currentComponentId: typeof currentComponentId;
-        /** @type {__reactiveComponents} */
-        __reactiveComponents: typeof __reactiveComponents;
+  interface Window {
+    /** @type {__GLOBAL_HOOKS_SETUP} */
+    __GLOBAL_HOOKS_SETUP?: typeof __GLOBAL_HOOKS_SETUP;
+    /** @type {currentComponentId} */
+    currentComponentId: typeof currentComponentId;
+    /** @type {__reactiveComponents} */
+    __reactiveComponents: typeof __reactiveComponents;
 
-        /** @type {__GLOBAL_STATES} */
-        __GLOBAL_STATES: typeof __GLOBAL_STATES;
+    /** @type {__GLOBAL_STATES} */
+    __GLOBAL_STATES: typeof __GLOBAL_STATES;
 
-        /** @type {useState} */
-        useState: typeof useState;
-        /** @type {useEffect} */
-        useEffect: typeof useEffect;
-        /** @type {useRef} */
-        useRef: typeof useRef;
-        /** @type {reactiveComponent} */
-        reactiveComponent: typeof reactiveComponent;
+    // Core Hooks
+    /** @type {useState} */
+    useState: typeof useState;
+    /** @type {useEffect} */
+    useEffect: typeof useEffect;
+    /** @type {useRef} */
+    useRef: typeof useRef;
+    /** @type {createContext} */
+    createContext: typeof createContext;
+    /** @type {useContext} */
+    useContext: typeof useContext;
+    /** @type {deleteContext} */
+    deleteContext: typeof deleteContext;
+    /** @type {__cleanupRouteComponents} */
+    __cleanupRouteComponents: typeof __cleanupRouteComponents;
+    // Router System
+    /** @type {INITIALIZE_ROUTER} */
+    INITIALIZE_ROUTER: typeof INITIALIZE_ROUTER;
+    /** @type {navigate} */
+    navigate: typeof navigate;
 
-        /** @type {__cleanupComponent} */
-        __cleanupComponent: typeof __cleanupComponent;
-        /** @type {__cleanupAllComponents} */
-        __cleanupAllComponents: typeof __cleanupAllComponents;
-        /** @type {__getComponentState} */
-        __getComponentState: typeof __getComponentState;
-    }
+    // Component System
+    /** @type {reactiveComponent} */
+    reactiveComponent: typeof reactiveComponent;
+
+    /** @type {__cleanupComponent} */
+    __cleanupComponent: typeof __cleanupComponent;
+    /** @type {__cleanupAllComponents} */
+    __cleanupAllComponents: typeof __cleanupAllComponents;
+    /** @type {__getComponentState} */
+    __getComponentState: typeof __getComponentState;
+  }
 }
 
 export { };
