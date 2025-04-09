@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "lib": ["ESNext", "DOM"],
+       "module": "commonjs",
+       "moduleResolution": "Node",
+       "target": "es2015",
+       "rootDir": "src",
+       "outDir": "cjs",
+       "skipLibCheck": true
+    },
+    "exclude": ["build"]
+ }

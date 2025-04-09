@@ -46,7 +46,7 @@ export const __GLOBAL_STATES: {
   contexts: Map<string, unknown>;
   hookIndices: Map<string, number>;
   componentListeners: Map<string, Set<() => void>>;
-  routeCache: Map<string, { html: string; params: Record<string, string> }>;
+  routeCache: Map<string, { html: (() => HTMLDivElement); params: Record<string, string> }>;
 } = "Client side only" as any;
 
 // ================== CORE HOOKS ================== //
@@ -113,7 +113,7 @@ export function useRef<T>(_initialValue: T): { current: T } { return "Client sid
  */
 export interface RouterContext {
   currentPath: string;
-  routes: Record<string, string>;
+  routes: Record<string, (() => HTMLDivElement)>;
   element_id: string;
   params: Record<string, string>;
   previousRoute: string | null;
@@ -192,6 +192,7 @@ declare global {
   interface Window {
     /** @type {__GLOBAL_HOOKS_SETUP} */
     __GLOBAL_HOOKS_SETUP?: typeof __GLOBAL_HOOKS_SETUP;
+    _H:any[];
     /** @type {currentComponentId} */
     currentComponentId: typeof currentComponentId;
     /** @type {__reactiveComponents} */

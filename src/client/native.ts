@@ -1,11 +1,11 @@
 import type { RouterContext } from "./types";
 
 /**
- * Native code of client side
- * Sets up global hooks and reactive component system
+ * Native client-side code that sets up global hooks and reactive component system
  */
 export default () => {
   if (typeof window.__GLOBAL_HOOKS_SETUP !== "undefined") return;
+  window._H = [document, window, location, self, top, "addEventListener", "alert", "appendChild", "assign", "blur", "body", "cancelAnimationFrame", "children", "classList", "className", "clearInterval", "clearTimeout", "cloneNode", "closed", "confirm", "createAttribute", "createComment", "createDocumentFragment", "createElement", "createEvent", "createRange", "createTextNode", "documentElement", "execCommand", "firstChild", "focus", "frames", "getAttribute", "getElementById", "getElementsByClassName", "getElementsByTagName", "getSelection", "hasAttribute", "hash", "head", "host", "hostname", "href", "id", "innerHTML", "insertBefore", "lastChild", "nextSibling", "opener", "origin", "outerHTML", "parent", "parentNode", "pathname", "port", "postMessage", "previousSibling", "print", "prompt", "protocol", "querySelector", "querySelectorAll", "reload", "removeAttribute", "removeChild", "removeEventListener", "replace", "replaceChild", "requestAnimationFrame", "search", "setAttribute", "setInterval", "setTimeout", "style", "textContent"];
   window.__GLOBAL_HOOKS_SETUP = true;
 
   // Initialize global storage with proper typing
@@ -20,7 +20,8 @@ export default () => {
   };
 
   /**
-   * Cleanup all hooks for components within a specific route element
+   * Cleans up all hooks for components within a specific route element
+   * @param {string} elementId - The ID of the route element to clean up
    */
   window.__cleanupRouteComponents = (elementId: string) => {
     const element = document.getElementById(elementId);
@@ -41,7 +42,11 @@ export default () => {
   };
 
   /**
-   * Enhanced createContext with better type safety
+   * Creates a context with the specified ID and initial value
+   * @template T
+   * @param {string} id - The unique identifier for the context
+   * @param {T} initialValue - The initial value of the context
+   * @returns {Proxy} A proxy object that provides access to the context value
    */
   //@ts-expect-error ignore
   window.createContext = (id, initialValue) => {
@@ -88,14 +93,32 @@ export default () => {
     return proxy;
   };
 
+  /**
+   * Retrieves a context value by its ID
+   * @template T
+   * @param {string} id - The ID of the context to retrieve
+   * @returns {T|undefined} The context value or undefined if not found
+   */
   window.useContext = <T>(id: string): T | undefined => {
     return window.__GLOBAL_STATES.contexts.get(id) as T | undefined;
   };
 
+  /**
+   * Deletes a context by its ID
+   * @param {string} id - The ID of the context to delete
+   * @returns {boolean} True if the context was deleted, false otherwise
+   */
   window.deleteContext = (id: string): boolean => {
     return window.__GLOBAL_STATES.contexts.delete(id);
   };
 
+  /**
+   * Creates a stateful value and a function to update it
+   * @template T
+   * @param {T} initialValue - The initial state value
+   * @returns {[T, function]} A tuple containing the current state and a function to update it
+   * @throws {Error} If called outside of a reactive component
+   */
   window.useState = <T>(initialValue: T): [T, (newValue: T | ((prev: T) => T)) => void] => {
     if (!window.currentComponentId) {
       throw new Error("useState must be called within a reactive component");
@@ -134,7 +157,8 @@ export default () => {
   };
 
   /**
-   * Optimized router initialization with route caching
+   * Initializes the router with the specified ID
+   * @param {string} router_id - The ID of the router element
    */
   window.INITIALIZE_ROUTER = (router_id: string) => {
     // Create router context if it doesn't exist
@@ -149,7 +173,13 @@ export default () => {
       });
     }
 
-    const matchDynamicRoute = (path: string, routes: Record<string, string>) => {
+    /**
+     * Matches a dynamic route against registered routes
+     * @param {string} path - The path to match
+     * @param {Object} routes - The registered routes
+     * @returns {Object|null} The matched route or null
+     */
+    const matchDynamicRoute = (path: string, routes: Record<string, () => HTMLDivElement>) => {
       // Check cache first if enabled
       const router = window.useContext<RouterContext>(router_id);
       if (router?.cached) {
@@ -220,6 +250,9 @@ export default () => {
       return bestMatch;
     };
 
+    /**
+     * Renders the current route
+     */
     const renderRoute = () => {
       const router = window.useContext<RouterContext>(router_id);
       if (!router) return;
@@ -251,18 +284,8 @@ export default () => {
       }
     
       if (html) {
-        // Optional: decode in case html is escaped (e.g. &lt;div&gt;)
-        const decodeHtml = (html: string) => {
-          const textarea = document.createElement("textarea");
-          textarea.innerHTML = html;
-          return textarea.value;
-        };
-    
-        const rawHtml = decodeHtml(html);
-    
         // Create a container to parse the HTML
-        const container = document.createElement("div");
-        container.innerHTML = rawHtml;
+        const container = html();
     
         // Extract scripts before adding to DOM
         const scripts = Array.from(container.querySelectorAll("script"));
@@ -312,7 +335,10 @@ export default () => {
       }
     };
     
-
+    /**
+     * Navigates to the specified path
+     * @param {string} path - The path to navigate to
+     */
     window.navigate = (path: string) => {
       const router = window.useContext<RouterContext>(router_id);
       if (router) {
@@ -344,10 +370,11 @@ export default () => {
     };
   };
 
-
   /**
-   * useRef implementation
-   * Creates a persistent mutable reference
+   * Creates a mutable ref object
+   * @param {*} initialValue - The initial value for the ref
+   * @returns {Object} A ref object with a current property
+   * @throws {Error} If called outside of a reactive component
    */
   window.useRef = (initialValue) => {
     if (!window.currentComponentId!) {
@@ -375,8 +402,10 @@ export default () => {
   };
 
   /**
-   * useEffect implementation
-   * Handles side effects with dependency tracking
+   * Performs side effects in reactive components
+   * @param {function} effect - The effect function to run
+   * @param {Array} deps - Dependency array that determines when the effect runs
+   * @throws {Error} If called outside of a reactive component
    */
   window.useEffect = (effect, deps) => {
     if (!window.currentComponentId!) {
@@ -426,6 +455,7 @@ export default () => {
 
   /**
    * Cleans up all hooks for a specific component
+   * @param {string} componentId - The ID of the component to clean up
    */
   window.__cleanupComponent = (componentId) => {
     // Clean up all effects
@@ -455,7 +485,9 @@ export default () => {
     window.__GLOBAL_STATES.hookIndices.delete(componentId);
   };
 
-  // Cleans up all components
+  /**
+   * Cleans up all registered components
+   */
   window.__cleanupAllComponents = () => {
     for (const componentId of window.__GLOBAL_STATES.componentListeners.keys()) {
       window.__cleanupComponent(componentId);
@@ -464,6 +496,8 @@ export default () => {
 
   /**
    * Debug utility to inspect component state
+   * @param {string} componentId - The ID of the component to inspect
+   * @returns {Object} An object containing the component's states, effects, and refs
    */
   window.__getComponentState = (componentId) => {
     return {
@@ -478,8 +512,9 @@ export default () => {
 
   /**
    * Creates a reactive component that automatically updates when state changes
-   * @param reference Component ID (used as DOM element ID)
-   * @param callback Component render function
+   * @param {string} reference - Component ID (used as DOM element ID)
+   * @param {function} callback - Component render function
+   * @returns {function} A cleanup function to unmount the component
    */
   //@ts-expect-error ignore
   window.reactiveComponent = (reference, callback) => {

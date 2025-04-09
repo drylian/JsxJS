@@ -2,8 +2,12 @@ import type { DOMElement, DOMNode, PrimitiveNode } from "./types";
 
 /**
  * Extracts the body, parameters, and async status from a function
- * @param fn The function to analyze
- * @returns Object containing function body, parameters, and async status
+ * @param {Function} fn - The function to analyze
+ * @returns {Object} An object containing:
+ *                   - body: The function body as a string
+ *                   - params: Array of parameter names
+ *                   - isAsync: Boolean indicating if the function is async
+ * @throws {Error} If the function pattern cannot be recognized
  */
 export function extractFunctionWithParams(fn: Function): {
     body: string;
@@ -80,6 +84,8 @@ export function extractFunctionWithParams(fn: Function): {
 
 /**
  * Checks if a node is a primitive type (string, number, boolean, null, or undefined)
+ * @param {unknown} node - The node to check
+ * @returns {boolean} True if the node is a primitive type
  */
 export const isPrimitiveNode = (node: unknown): node is PrimitiveNode => (
     typeof node === 'string' ||
@@ -90,7 +96,9 @@ export const isPrimitiveNode = (node: unknown): node is PrimitiveNode => (
 );
 
 /**
- * Checks if a node is a JSX element (DOMNode)
+ * Checks if a node is a JSX element (DOMElement)
+ * @param {unknown} node - The node to check
+ * @returns {boolean} True if the node is a DOMElement
  */
 export const isElementNode = (node: unknown): node is DOMElement => (
     typeof node !== "undefined" && typeof node === 'object' && node !== null &&
@@ -99,11 +107,14 @@ export const isElementNode = (node: unknown): node is DOMElement => (
 
 /**
  * Checks if a node is valid (not null, undefined, or false)
+ * @param {unknown} node - The node to check
+ * @returns {boolean} True if the node is valid
  */
 export const isValidNode = (node: unknown): boolean => (
     node !== null && node !== undefined && node !== false
 );
 
+// Set of HTML void elements that don't need closing tags
 const voidElements = new Set([
     'area', 'base', 'br', 'col', 'embed', 'hr',
     'img', 'input', 'link', 'meta', 'param',
@@ -112,14 +123,18 @@ const voidElements = new Set([
 
 /**
  * Checks if an HTML element type is a void element (self-closing)
+ * @param {string} type - The HTML element type to check
+ * @returns {boolean} True if the element is a void element
  */
 export const isVoidElement = (type: string): boolean => {
-
     return voidElements.has(type);
 };
 
 /**
- * Random gerator
+ * Generates a random string of specified length
+ * @param {number} [length=64] - The length of the random string
+ * @param {boolean} [ext=false] - Whether to include extended special characters
+ * @returns {string} The generated random string
  */
 export const random = (length: number = 64, ext: boolean = false): string => {
     let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -150,9 +165,9 @@ export const random = (length: number = 64, ext: boolean = false): string => {
 
 /**
  * Serializes function parameters safely, handling complex objects
- * @param params Array of parameter names
- * @param props Props object containing parameter values
- * @returns Serialized parameter declarations as a string
+ * @param {string[]} params - Array of parameter names
+ * @param {object} props - Props object containing parameter values
+ * @returns {string} Serialized parameter declarations as a string
  */
 export function serializeParams(params: string[], props: object): string {
     return params.map((param, index) => {
