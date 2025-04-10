@@ -345,3 +345,6 @@ export const DOM = {
     isPrimitiveNode,
     isValidNode
 };
+
+//@ts-expect-error Declare global cael js
+global.CAELJSDOM = DOM;
