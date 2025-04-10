@@ -69,69 +69,6 @@ export const createElement = (
 };
 
 /**
- * Renders a virtual DOM node into HTML fragments
- * @param {DOMNode} node - The virtual DOM node to render
- * @param {string[]} [fragments=[]] - Array to accumulate HTML fragments
- * @returns {Promise<string[]>} Promise resolving to array of HTML fragments
- */
-export const renderToFragments = async (node: DOMNode, fragments: string[] = []): Promise<string[]> => {
-    // Handle promises
-    //@ts-expect-error loop element type
-    if (node instanceof Promise) return renderToFragments(await node, fragments);
-
-    // Handle arrays of nodes
-    if (Array.isArray(node)) {
-        await Promise.all(node.map(n => renderToFragments(n, fragments)));
-        return fragments;
-    }
-
-    // Handle primitive nodes
-    if (isPrimitiveNode(node)) {
-        const result = node != null ? String(node) : '';
-        fragments.push(result);
-        return fragments;
-    }
-
-    // Handle function components
-    if (typeof node.type === 'function') {
-        const result = node.type(node.props);
-        return renderToFragments(result, fragments);
-    }
-
-    const { type, props } = node;
-    const children = props.children ?
-        (Array.isArray(props.children) ? props.children : [props.children]) :
-        [];
-
-    // Handle regular elements
-    const { scripts, attributes, lockchildren } = await AttributeRender.render_static(props, fragments);
-    const isVoid = isVoidElement(type);
-
-    // Process children only once
-    const childrens: string[] = [];
-    if (!lockchildren) {
-        await renderToFragments(children, childrens);
-    }
-
-    // Build element HTML
-    if (!lockchildren) {
-        fragments.push(isVoid ?
-            `<${type}${attributes ? ' ' + attributes : ''} />` :
-            `<${type}${attributes ? ' ' + attributes : ''}>${childrens.join('')}</${type}>`);
-    }
-
-    // Add scripts after the element
-    if (scripts.length) {
-        const fragmenteds = await Promise.all(scripts.map(script =>
-            renderToString(script)
-        ));
-        fragments.push(...fragmenteds);
-    }
-
-    return fragments;
-};
-
-/**
  * Compresses HTML/JS code by removing comments and whitespace
  * @param {string} code - The code to compress
  * @returns {string} The compressed code
@@ -160,18 +97,164 @@ export const compress = (code: string): string => {
 };
 
 /**
- * Converts a virtual DOM node to HTML string
+ * Renders a virtual DOM node into HTML fragments
  * @param {DOMNode} node - The virtual DOM node to render
- * @param {boolean} [minify=true] - Whether to minify the output
- * @returns {Promise<string>} Promise resolving to HTML string
+ * @param {string[]} [fragments=[]] - Array to accumulate HTML fragments
+ * @returns {Promise<string[]>} Promise resolving to array of HTML fragments
  */
-export const renderToString = async (node: DOMNode, minify = true): Promise<string> => {
-    const fragments = await renderToFragments(node);
-    let result = fragments.join("");
-    if (minify) {
-        result = compress(result);
+export const renderToStringFragments = async (node: DOMNode, fragments: string[] = []): Promise<string[]> => {
+    // Handle promises
+    if (node instanceof Promise) {
+        //@ts-expect-error loop element type
+        return renderToStringFragments(await node, fragments);
     }
-    return result;
+
+    // Handle arrays of nodes
+    if (Array.isArray(node)) {
+        await Promise.all(node.map(n => renderToStringFragments(n, fragments)));
+        return fragments;
+    }
+
+    // Handle primitive nodes
+    if (isPrimitiveNode(node)) {
+        const result = node != null ? String(node) : '';
+        fragments.push(result);
+        return fragments;
+    }
+
+    // Handle function components
+    if (typeof node.type === 'function') {
+        const result = node.type(node.props);
+        return renderToStringFragments(result, fragments);
+    }
+
+    // Process element node
+    const { type, props } = node;
+    const children = props.children ? 
+        (Array.isArray(props.children) ? props.children : [props.children]) : 
+        [];
+
+    // Render attributes and check for locked children
+    const { scripts, attributes, lockchildren } = await AttributeRender.render_static(props, fragments);
+    const isVoid = isVoidElement(type);
+
+    // Process children if not locked
+    const childrenFragments: string[] = [];
+    if (!lockchildren) {
+        await renderToStringFragments(children, childrenFragments);
+    }
+
+    // Build element HTML if not locked
+    if (!lockchildren) {
+        const openingTag = `<${type}${attributes ? ' ' + attributes : ''}`;
+        if (isVoid) {
+            fragments.push(`${openingTag} />`);
+        } else {
+            fragments.push(`${openingTag}>`);
+            fragments.push(...childrenFragments);
+            fragments.push(`</${type}>`);
+        }
+    }
+
+    // Add scripts after the element
+    if (scripts.length) {
+        const scriptFragments = await Promise.all(scripts.map(script =>
+            renderToStringFragments(script)
+        ));
+        scriptFragments.forEach(sf => fragments.push(...sf));
+    }
+
+    return fragments;
+};
+
+export const renderToString = async (node: DOMNode, minify = true): Promise<string> => {
+    const fragments = await renderToStringFragments(node);
+    
+    // Structure detection and content collection
+    let doctype = false;
+    let html = false;
+    let head = false;
+    let body = false;
+    const head_contents: string[] = [];
+    const body_contents: string[] = [];
+    const other_contents: string[] = [];
+    const html_attrs: string[] = [];
+
+    // Parse fragments and organize content
+    for (const fragment of fragments) {
+        if (/<!doctype/i.test(fragment.toLowerCase())) {
+            doctype = true;
+            continue;
+        }
+        
+        const htmlTagMatch = fragment.match(/<html\s([^>]*)>/i);
+        if (htmlTagMatch) {
+            html = true;
+            if (htmlTagMatch[1]) {
+                html_attrs.push(htmlTagMatch[1]);
+            }
+            continue;
+        }
+        
+        if (/<head[\s>]/i.test(fragment)) {
+            head = true;
+            continue;
+        }
+        
+        if (/<body[\s>]/i.test(fragment)) {
+            body = true;
+            continue;
+        }
+        
+        if (/<\/?(html|head|body)[\s>]/i.test(fragment)) {
+            continue;
+        }
+        
+        if (head && !body) {
+            head_contents.push(fragment);
+        } else if (body) {
+            body_contents.push(fragment);
+        } else {
+            other_contents.push(fragment);
+        }
+    }
+
+    // Build final HTML structure
+    const builded: string[] = [];
+    
+    // Document type and root element
+    if (!doctype && (html || head || body)) {
+        builded.push('<!DOCTYPE html>');
+    }
+    
+    const attrs = html_attrs.length > 0 ? ` ${html_attrs.join(' ')}` : '';
+    builded.push(`<html${attrs}>`);
+    
+    // Head section
+    if (head || head_contents.length > 0) {
+        builded.push('<head>', ...head_contents, '</head>');
+    }
+    
+    // Body section
+    const body_context = body || body_contents.length > 0;
+    if (body_context) {
+        builded.push('<body>', ...body_contents, '</body>');
+    }
+    
+    // Handle remaining content
+    if (other_contents.length > 0) {
+        if (body_context) {
+            body_contents.push(...other_contents);
+        } else {
+            builded.push('<body>', ...other_contents, '</body>');
+        }
+    }
+    
+    // Close document
+    builded.push('</html>');
+    
+    let result = builded.join("");
+    return minify ? compress(result) : result;
 };
 
 /**
@@ -348,6 +431,7 @@ export const DOM = {
     createElement,
     renderToString,
     extractFunctionWithParams,
+    renderToStringFragments,
     renderToClientDOM,
     isVoidElement,
     isPrimitiveNode,
