@@ -32,7 +32,7 @@ const DOM_INDEX_MAP = new Map([...GLOBAL_OBJECTS, ...DOM_API].map((key, index) =
  * @returns {DOMNode} The created virtual DOM node
  * @throws Will return error comment if component rendering fails
  */
-const createElement = (
+export const createElement = (
     type: string | FunctionComponent,
     props: DOMAttributes | null,
     ...children: DOMNode[]
@@ -74,7 +74,7 @@ const createElement = (
  * @param {string[]} [fragments=[]] - Array to accumulate HTML fragments
  * @returns {Promise<string[]>} Promise resolving to array of HTML fragments
  */
-const renderToFragments = async (node: DOMNode, fragments: string[] = []): Promise<string[]> => {
+export const renderToFragments = async (node: DOMNode, fragments: string[] = []): Promise<string[]> => {
     // Handle promises
     //@ts-expect-error loop element type
     if (node instanceof Promise) return renderToFragments(await node, fragments);
@@ -136,7 +136,7 @@ const renderToFragments = async (node: DOMNode, fragments: string[] = []): Promi
  * @param {string} code - The code to compress
  * @returns {string} The compressed code
  */
-const compress = (code: string): string => {
+export const compress = (code: string): string => {
     return code
         // Protect string literals first
         .replace(/("([^"\\]|\\.)*"|'([^'\\]|\\.)*'|`([^`\\]|\\.)*`)/g, match => {
@@ -165,7 +165,7 @@ const compress = (code: string): string => {
  * @param {boolean} [minify=true] - Whether to minify the output
  * @returns {Promise<string>} Promise resolving to HTML string
  */
-const renderToString = async (node: DOMNode, minify = true): Promise<string> => {
+export const renderToString = async (node: DOMNode, minify = true): Promise<string> => {
     const fragments = await renderToFragments(node);
     let result = fragments.join("");
     if (minify) {
@@ -184,7 +184,7 @@ const renderToString = async (node: DOMNode, minify = true): Promise<string> => 
  * @param {boolean} [options.fragment=false] - Whether to create document fragment
  * @returns {Promise<string>} Promise resolving to DOM creation code
  */
-const renderToClientDOM = async (
+export const renderToClientDOM = async (
     node: DOMNode,
     {
         variable = "$$",
