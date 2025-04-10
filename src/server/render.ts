@@ -325,32 +325,6 @@ export const renderToClientDOM = async (
     return minify ? compress(finalCode) : finalCode;
 };
 
-/**
- * Public DOM manipulation API
- * @namespace
- * @property {Function} createElement - Creates virtual DOM elements
- * @property {Function} renderToString - Renders virtual DOM to HTML string
- * @property {Function} extractFunctionWithParams - Extracts functions with parameters
- * @property {Function} renderToClientDOM - Renders to client-side DOM creation code
- * @property {Function} isVoidElement - Checks if element is void (self-closing)
- * @property {Function} isPrimitiveNode - Checks if node is primitive (string/number)
- * @property {Function} isValidNode - Checks if node is valid
- */
-export const DOM = {
-    createElement,
-    renderToString,
-    extractFunctionWithParams,
-    renderToClientDOM,
-    isVoidElement,
-    isPrimitiveNode,
-    isValidNode
-};
-
-/**
- * Support to jsx importer
- * @returns 
- */
-
 export function jsx(type: string | FunctionComponent, props: any, key?: string): DOMNode {
     const children = props?.children ?? [];
     const { children: _, ...restProps } = props || {};
@@ -369,4 +343,20 @@ export function Fragment(props: { children?: DOMNode }): DOMNode {
     return props?.children ?? [];
 }
 
-export { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment };
+
+export const DOM = {
+    createElement,
+    renderToString,
+    extractFunctionWithParams,
+    renderToClientDOM,
+    isVoidElement,
+    isPrimitiveNode,
+    isValidNode,
+    jsx,
+    jsxs,
+    Fragment
+};
+
+
+//@ts-expect-error use caeljs in swc compiler
+global.CAELJS = DOM;
