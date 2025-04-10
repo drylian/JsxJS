@@ -2,7 +2,7 @@
   "name": "@caeljs/jsx",
   "type": "module",
   "description": "ASYNC JSX/SSR framework for building modern web applications with component-based templates. It offers a lightweight virtual DOM, intelligent routing system, and reactive components with no external dependencies. Designed to generate optimized static websites or dynamic SSR applications with high performance",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "main": "cjs/JsxSSR.cjs",
   "module": "esm/JsxSSR.js",
   "types": "dist/JsxSSR.d.ts",
@@ -15,6 +15,16 @@
   },
   "exports": {
     ".": {
+      "types": "./JsxSSR.d.ts",
+      "import": "./esm/JsxSSR.js",
+      "require": "./cjs/JsxSSR.cjs"
+    },
+    "./runtime": {
+      "types": "./JsxSSR.d.ts",
+      "import": "./esm/JsxSSR.js",
+      "require": "./cjs/JsxSSR.cjs"
+    },
+    "./jsx-runtime": {
       "types": "./JsxSSR.d.ts",
       "import": "./esm/JsxSSR.js",
       "require": "./cjs/JsxSSR.cjs"

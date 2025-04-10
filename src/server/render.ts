@@ -347,7 +347,26 @@ export const DOM = {
 };
 
 /**
- * Used for builded jsx 
+ * Support to jsx importer
+ * @returns 
  */
-//@ts-expect-error ...
-global.CAELJSDOM = DOM;
+
+export function jsx(type: string | FunctionComponent, props: any, key?: string): DOMNode {
+    const children = props?.children ?? [];
+    const { children: _, ...restProps } = props || {};
+    return createElement(
+        type,
+        key ? { ...restProps, key } : restProps,
+        ...(Array.isArray(children) ? children : [children])
+    );
+}
+
+export function jsxs(type: string | FunctionComponent, props: any, key?: string): DOMNode {
+    return jsx(type, props, key);
+}
+
+export function Fragment(props: { children?: DOMNode }): DOMNode {
+    return props?.children ?? [];
+}
+
+export { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment };
