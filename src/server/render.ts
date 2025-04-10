@@ -346,5 +346,8 @@ export const DOM = {
     isValidNode
 };
 
-//@ts-expect-error Declare global cael js
+/**
+ * Used for builded jsx 
+ */
+//@ts-expect-error ...
 global.CAELJSDOM = DOM;
