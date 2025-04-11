@@ -173,20 +173,22 @@ export const renderToString = async (node: DOMNode, minify = true): Promise<stri
     // Structure detection and content collection
     let doctype = false;
     let html = false;
-    let head = false;
-    let body = false;
     const head_contents: string[] = [];
     const body_contents: string[] = [];
     const other_contents: string[] = [];
     const html_attrs: string[] = [];
+    let inHead = false;
+    let inBody = false;
 
     // Parse fragments and organize content
     for (const fragment of fragments) {
-        if (/<!doctype/i.test(fragment.toLowerCase())) {
+        // Check for doctype
+        if (/<!doctype/i.test(fragment)) {
             doctype = true;
             continue;
         }
         
+        // Check for html tag with attributes
         const htmlTagMatch = fragment.match(/<html\s([^>]*)>/i);
         if (htmlTagMatch) {
             html = true;
@@ -196,23 +198,35 @@ export const renderToString = async (node: DOMNode, minify = true): Promise<stri
             continue;
         }
         
+        // Check for head start/end
         if (/<head[\s>]/i.test(fragment)) {
-            head = true;
+            inHead = true;
+            continue;
+        }
+        if (/<\/head>/i.test(fragment)) {
+            inHead = false;
             continue;
         }
         
+        // Check for body start/end
         if (/<body[\s>]/i.test(fragment)) {
-            body = true;
+            inBody = true;
+            continue;
+        }
+        if (/<\/body>/i.test(fragment)) {
+            inBody = false;
             continue;
         }
         
+        // Skip closing tags of html/head/body
         if (/<\/?(html|head|body)[\s>]/i.test(fragment)) {
             continue;
         }
         
-        if (head && !body) {
+        // Organize content based on current context
+        if (inHead) {
             head_contents.push(fragment);
-        } else if (body) {
+        } else if (inBody) {
             body_contents.push(fragment);
         } else {
             other_contents.push(fragment);
@@ -222,33 +236,20 @@ export const renderToString = async (node: DOMNode, minify = true): Promise<stri
     // Build final HTML structure
     const builded: string[] = [];
     
-    // Document type and root element
-    if (!doctype && (html || head || body)) {
+    // Document type
+    if (!doctype && (html || head_contents.length > 0 || body_contents.length > 0)) {
         builded.push('<!DOCTYPE html>');
     }
     
+    // HTML opening tag with attributes
     const attrs = html_attrs.length > 0 ? ` ${html_attrs.join(' ')}` : '';
     builded.push(`<html${attrs}>`);
     
-    // Head section
-    if (head || head_contents.length > 0) {
+    if (head_contents.length > 0 || inHead) {
         builded.push('<head>', ...head_contents, '</head>');
     }
     
-    // Body section
-    const body_context = body || body_contents.length > 0;
-    if (body_context) {
-        builded.push('<body>', ...body_contents, '</body>');
-    }
-    
-    // Handle remaining content
-    if (other_contents.length > 0) {
-        if (body_context) {
-            body_contents.push(...other_contents);
-        } else {
-            builded.push('<body>', ...other_contents, '</body>');
-        }
-    }
+    builded.push('<body>', ...body_contents, ...other_contents, '</body>');
     
     // Close document
     builded.push('</html>');
@@ -256,7 +257,6 @@ export const renderToString = async (node: DOMNode, minify = true): Promise<stri
     let result = builded.join("");
     return minify ? compress(result) : result;
 };
-
 /**
  * Renders virtual DOM to client-side DOM creation code
  * @param {DOMNode} node - The virtual DOM node to render
