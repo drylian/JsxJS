@@ -426,6 +426,22 @@ export function Fragment(props: { children?: DOMNode }): DOMNode {
     return props?.children ?? [];
 }
 
+type JSXSource = {
+  fileName: string;
+  lineNumber: number;
+  columnNumber: number;
+};
+
+export function jsxDEV(
+  type: string | FunctionComponent,
+  props: Record<string, any> | null,
+  key: string | undefined,
+  _isStaticChildren: boolean,
+  _source?: JSXSource,
+  _self?: any
+): DOMNode {
+  return jsx(type, props ?? {}, key);
+}
 
 export const DOM = {
     createElement,
@@ -440,7 +456,3 @@ export const DOM = {
     jsxs,
     Fragment
 };
-
-
-//@ts-expect-error use caeljs in swc compiler
-global.CAELJS = DOM;
