@@ -38,7 +38,8 @@ export const createElement = (
     ...children: DOMNode[]
 ): DOMNode => {
     const normalizedProps = props || {};
-    normalizedProps.children = children.flat().filter(isValidNode);
+    normalizedProps.children = children.flat()
+    .filter((node) => node !== null && node !== undefined && node !== false);
 
     // Special handling for script elements with client-side code
     if (type === 'script' && (normalizedProps.client || normalizedProps.loaded)) {

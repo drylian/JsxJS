@@ -1,4 +1,4 @@
-import type { DOMElement, DOMNode, PrimitiveNode } from "./types";
+import type { DOMElement, DOMNode, FunctionComponent, PrimitiveNode } from "./types";
 
 /**
  * Extracts the body, parameters, and async status from a function
@@ -106,13 +106,84 @@ export const isElementNode = (node: unknown): node is DOMElement => (
 );
 
 /**
- * Checks if a node is valid (not null, undefined, or false)
- * @param {unknown} node - The node to check
- * @returns {boolean} True if the node is valid
+ * Enhanced DOM node validation with type-specific checks
+ * @param node - The node to validate
+ * @param options - Validation options
+ * @returns True if the node is valid according to the specified criteria
  */
-export const isValidNode = (node: unknown): boolean => (
-    node !== null && node !== undefined && node !== false
-);
+export const isValidNode = (
+    node: unknown,
+    options: {
+        allowEmptyString?: boolean;
+        allowZero?: boolean;
+        allowBoolean?: boolean;
+        allowPromise?: boolean;
+        allowFunction?: boolean;
+    } = {}
+): node is DOMNode => {
+    // Default options
+    const {
+        allowEmptyString = false,
+        allowZero = true,
+        allowBoolean = false,
+        allowPromise = true,
+        allowFunction = true,
+    } = options;
+
+    // Null/undefined check
+    if (node == null) return false;
+
+    // Boolean check
+    if (typeof node === 'boolean') return allowBoolean;
+
+    // Number check (special handling for 0)
+    if (typeof node === 'number') {
+        if (node === 0) return allowZero;
+        return !Number.isNaN(node);
+    }
+
+    // String check (empty string handling)
+    if (typeof node === 'string') return allowEmptyString || node.length > 0;
+
+    // Promise check
+    if (node instanceof Promise) return allowPromise;
+
+    // Function check (for components)
+    if (typeof node === 'function') return allowFunction;
+
+    // Array check (recursive validation)
+    if (Array.isArray(node)) {
+        return node.every(child => isValidNode(child, options));
+    }
+
+    // DOM Node object check
+    if (typeof node === 'object') {
+        return (
+            node !== null && 'type' in node && 
+            node.type !== undefined && 'props' in node &&
+            node.props !== undefined
+        );
+    }
+
+    // All other cases
+    return true;
+};
+
+// Type guard version for specific node types
+export const isValidNodeOfType = <T extends DOMNode>(
+    node: unknown,
+    typeGuard: (n: DOMNode) => n is T,
+    options?: Parameters<typeof isValidNode>[1]
+): node is T => {
+    return isValidNode(node, options) && typeGuard(node as DOMNode);
+};
+
+export const isComponentNode = (node: unknown): node is { type: FunctionComponent; props: any } =>
+    isValidNode(node) && typeof (node as any).type === 'function';
+
+export const isTextNode = (node: unknown): node is string | number =>
+    typeof node === 'string' || typeof node === 'number';
+
 
 // Set of HTML void elements that don't need closing tags
 const voidElements = new Set([
